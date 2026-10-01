@@ -6,4 +6,5 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 export const usersRouter = Router();
 
 usersRouter.get("/", requireAuth, asyncHandler(listUsers));
-usersRouter.post("/", asyncHandler(createUser));
+// Creates real rbac.Users rows (with roles) in TNBESSDB, so it must not be anonymous.
+usersRouter.post("/", requireAuth, asyncHandler(createUser));

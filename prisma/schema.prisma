@@ -1,3 +1,8 @@
+// TNBESSDB (shared with ESS_Backend).
+// These models mirror tables that ESS owns. NEVER run `prisma db push` or
+// `prisma migrate` against this database: Prisma would try to drop every
+// table that is not declared here. Only `prisma generate` is safe.
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -5,14 +10,86 @@ generator client {
 datasource db {
   provider = "sqlserver"
   url      = env("DATABASE_URL")
+  schemas  = ["rbac"]
 }
 
 model User {
-  id           String   @id @default(uuid())
-  email        String   @unique
-  name         String
-  passwordHash String
-  createdAt    DateTime @default(now())
+  userId                BigInt    @id @default(autoincrement()) @map("UserId")
+  userPrincipalName     String?   @unique @map("UserPrincipalName") @db.NVarChar(256)
+  authProviderId        BigInt    @map("AuthProviderId")
+  externalSubject       String?   @map("ExternalSubject") @db.NVarChar(255)
+  userName              String    @unique @map("UserName") @db.NVarChar(100)
+  email                 String    @unique @map("Email") @db.NVarChar(255)
+  displayName           String    @map("DisplayName") @db.NVarChar(500)
+  isActive              Boolean   @default(true) @map("IsActive")
+  isLocked              Boolean   @default(false) @map("IsLocked")
+  lastLoginAt           DateTime? @map("LastLoginAt") @db.DateTime2
+  passwordHash          String?   @map("PasswordHash") @db.NVarChar(500)
+  passwordSalt          String?   @map("PasswordSalt") @db.NVarChar(255)
+  passwordLastChangedAt DateTime? @map("PasswordLastChangedAt") @db.DateTime2
+  failedLoginCount      Int       @default(0) @map("FailedLoginCount")
+  lockedAt              DateTime? @map("LockedAt") @db.DateTime2
+  mustChangePassword    Boolean   @default(false) @map("MustChangePassword")
+  createdAt             DateTime  @map("CreatedAt") @db.DateTime2
+  createdBy             String?   @map("CreatedBy") @db.NVarChar(100)
+  updatedAt             DateTime  @map("UpdatedAt") @db.DateTime2
+  updatedBy             String?   @map("UpdatedBy") @db.NVarChar(100)
 
-  @@map("user")
+  authProvider AuthProvider @relation(fields: [authProviderId], references: [authProviderId], onDelete: NoAction, onUpdate: NoAction)
+  userRoles    UserRole[]
+
+  @@map("Users")
+  @@schema("rbac")
+}
+
+model AuthProvider {
+  authProviderId   BigInt   @id @default(autoincrement()) @map("AuthProviderId")
+  authProviderCode String   @unique @map("AuthProviderCode") @db.NVarChar(50)
+  isActive         Boolean  @default(true) @map("IsActive")
+  createdAt        DateTime @map("CreatedAt") @db.DateTime2
+  createdBy        String?  @map("CreatedBy") @db.NVarChar(100)
+  updatedAt        DateTime @map("UpdatedAt") @db.DateTime2
+  updatedBy        String?  @map("UpdatedBy") @db.NVarChar(100)
+
+  users User[]
+
+  @@map("AuthProviders")
+  @@schema("rbac")
+}
+
+model Role {
+  roleId    BigInt   @id @default(autoincrement()) @map("RoleId")
+  roleCode  String   @unique @map("RoleCode") @db.NVarChar(50)
+  roleName  String   @map("RoleName") @db.NVarChar(100)
+  isActive  Boolean  @default(true) @map("IsActive")
+  createdAt DateTime @map("CreatedAt") @db.DateTime2
+  createdBy String?  @map("CreatedBy") @db.NVarChar(100)
+  updatedAt DateTime @map("UpdatedAt") @db.DateTime2
+  updatedBy String?  @map("UpdatedBy") @db.NVarChar(100)
+
+  userRoles UserRole[]
+
+  @@map("Roles")
+  @@schema("rbac")
+}
+
+model UserRole {
+  userRoleId    BigInt   @id @default(autoincrement()) @map("UserRoleId")
+  userId        BigInt   @map("UserId")
+  roleId        BigInt   @map("RoleId")
+  companyId     Int?     @map("CompanyId")
+  divisionId    Int?     @map("DivisionId")
+  unitSectionId Int?     @map("UnitSectionId")
+  isActive      Boolean  @default(true) @map("IsActive")
+  createdAt     DateTime @map("CreatedAt") @db.DateTime2
+  createdBy     String?  @map("CreatedBy") @db.NVarChar(100)
+  updatedAt     DateTime @map("UpdatedAt") @db.DateTime2
+  updatedBy     String?  @map("UpdatedBy") @db.NVarChar(100)
+
+  user User @relation(fields: [userId], references: [userId], onDelete: NoAction, onUpdate: NoAction)
+  role Role @relation(fields: [roleId], references: [roleId], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([roleId, userId])
+  @@map("UserRoles")
+  @@schema("rbac")
 }

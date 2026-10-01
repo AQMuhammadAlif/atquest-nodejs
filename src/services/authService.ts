@@ -1,29 +1,89 @@
-import bcrypt from "bcryptjs";
 import { z } from "zod";
-import { findUserByEmail } from "../models/user.js";
+import { findAuthProviderById, findUserByUserNameOrEmail, updateLoginState } from "../models/user.js";
 import { HttpError } from "../utils/errors.js";
+import { verifyPassword } from "../utils/password.js";
 import { signToken } from "../utils/token.js";
 
+// Mirrors ESS_Backend UserAuthService.LoginAsync + UserAuthController.Login.
+const LOCAL_AUTH_PROVIDER_CODE = "LOCAL";
+
+// `email` is accepted as an alias so existing atquest clients keep working.
 const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(1),
+  userNameOrEmail: z.string().optional(),
+  email: z.string().optional(),
+  password: z.string().optional(),
 });
 
+function maxFailedLogins() {
+  return Number(process.env.AUTH_MAX_FAILED_LOGINS ?? 5);
+}
+
+function lockMinutes() {
+  return Number(process.env.AUTH_LOCK_MINUTES ?? 15);
+}
+
 export async function login(input: unknown) {
-  const body = loginSchema.parse(input);
-  const email = body.email.toLowerCase();
-  const user = await findUserByEmail(email);
-  const passwordMatches = user ? await bcrypt.compare(body.password, user.passwordHash) : false;
-  if (!user || !passwordMatches) {
-    throw new HttpError(401, "Invalid email or password");
+  const body = loginSchema.parse(input ?? {});
+  const identifier = (body.userNameOrEmail ?? body.email ?? "").trim();
+  const password = body.password ?? "";
+
+  if (!identifier || !password) {
+    throw new HttpError(401, "Invalid credentials.");
   }
 
+  const user = await findUserByUserNameOrEmail(identifier);
+  if (!user) {
+    throw new HttpError(401, "Invalid credentials.");
+  }
+
+  if (!user.isActive) {
+    throw new HttpError(403, "User is inactive.");
+  }
+
+  const authProvider = await findAuthProviderById(user.authProviderId);
+  if (authProvider?.authProviderCode.toUpperCase() !== LOCAL_AUTH_PROVIDER_CODE) {
+    throw new HttpError(403, "Only LOCAL auth provider supports password login.");
+  }
+
+  if (user.isLocked) {
+    // Auto-unlock only when the lock came from the failed-login window and it has elapsed.
+    const unlockAt = user.lockedAt ? user.lockedAt.getTime() + lockMinutes() * 60_000 : null;
+    if (unlockAt === null || Date.now() < unlockAt) {
+      throw new HttpError(403, "User is locked.");
+    }
+    await updateLoginState(user.userId, { failedLoginCount: 0, isLocked: false, lockedAt: null });
+    user.failedLoginCount = 0;
+  }
+
+  if (!user.passwordHash?.trim() || !user.passwordSalt?.trim()) {
+    throw new HttpError(403, "Password is not set for this user.");
+  }
+
+  if (!verifyPassword(password, user.passwordSalt, user.passwordHash)) {
+    const failedLoginCount = user.failedLoginCount + 1;
+    const lock = maxFailedLogins() > 0 && failedLoginCount >= maxFailedLogins();
+    await updateLoginState(user.userId, {
+      failedLoginCount,
+      isLocked: lock,
+      lockedAt: lock ? new Date() : null,
+    });
+    throw new HttpError(lock ? 403 : 401, lock ? "User is locked." : "Invalid credentials.");
+  }
+
+  await updateLoginState(user.userId, {
+    failedLoginCount: 0,
+    isLocked: false,
+    lockedAt: null,
+    lastLoginAt: new Date(),
+  });
+
   return {
-    token: signToken(user.id),
+    token: signToken(user.userId.toString()),
     user: {
-      id: user.id,
+      id: user.userId.toString(),
+      userName: user.userName,
       email: user.email,
-      name: user.name,
+      name: user.displayName,
       createdAt: user.createdAt,
     },
   };
