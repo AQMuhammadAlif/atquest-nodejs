@@ -1,9 +1,9 @@
 import { Request, Response } from "express";
-import * as service from "../services/approvalMaintenanceService.js";
-import * as peoplePicker from "../services/peoplePickerService.js";
-import { HttpError } from "../utils/errors.js";
-import { MAINTENANCE_MAX_PAGE_SIZE, queryGuid, queryInt, queryString, resolvePaging } from "../utils/essRequest.js";
-import { essCreated, essOk } from "../utils/essResponse.js";
+import * as service from "../../services/maintenance/approvalMaintenanceService.js";
+import * as peoplePicker from "../../services/peoplePickerService.js";
+import { HttpError } from "../../utils/errors.js";
+import { MAINTENANCE_MAX_PAGE_SIZE, queryGuid, queryInt, queryString, resolvePaging } from "../../utils/essRequest.js";
+import { essCreated, essOk } from "../../utils/essResponse.js";
 
 // Port of ESS_Backend ApprovalMaintenanceController (/v1/approval-maintenance).
 const MODULE_NAME = "Approval Maintenance";

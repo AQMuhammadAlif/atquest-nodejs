@@ -1,7 +1,7 @@
 import { Router } from "express";
-import * as controller from "../controllers/approvalMaintenanceController.js";
-import { asyncHandler } from "../utils/asyncHandler.js";
-import { guidParam } from "../utils/essRequest.js";
+import * as controller from "../../controllers/maintenance/approvalMaintenanceController.js";
+import { asyncHandler } from "../../utils/asyncHandler.js";
+import { guidParam } from "../../utils/essRequest.js";
 
 export const approvalMaintenanceRouter = Router();
 

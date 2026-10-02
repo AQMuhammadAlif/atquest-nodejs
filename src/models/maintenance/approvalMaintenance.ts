@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { routingPrisma, sqlParam } from "./routingPrisma.js";
+import { routingPrisma, sqlParam } from "../routingPrisma.js";
 
 export type ApprovalRuleSearchRow = {
   ID: string;

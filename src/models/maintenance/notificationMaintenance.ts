@@ -1,4 +1,4 @@
-import { routingPrisma, sqlParam } from "./routingPrisma.js";
+import { routingPrisma, sqlParam } from "../routingPrisma.js";
 
 // Row shapes returned by SEPRoutingManagement. GUIDs come back uppercase; map with toEssGuid.
 

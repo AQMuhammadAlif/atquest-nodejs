@@ -1,7 +1,7 @@
 import { Router } from "express";
-import * as controller from "../controllers/notificationMaintenanceController.js";
-import { asyncHandler } from "../utils/asyncHandler.js";
-import { guidParam } from "../utils/essRequest.js";
+import * as controller from "../../controllers/maintenance/notificationMaintenanceController.js";
+import { asyncHandler } from "../../utils/asyncHandler.js";
+import { guidParam } from "../../utils/essRequest.js";
 
 export const notificationMaintenanceRouter = Router();
 

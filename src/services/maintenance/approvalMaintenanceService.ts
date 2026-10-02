@@ -16,14 +16,14 @@ import {
   updateRuleAndApprovers,
   type RoutingRuleColumns,
   type RoutingRuleWithRouting,
-} from "../models/approvalMaintenance.js";
-import { listAvailableActions } from "../models/notificationMaintenance.js";
-import { employeeExists } from "../models/peoplePicker.js";
-import { HttpError } from "../utils/errors.js";
-import { toEssGuid, toEssRoundTripUtc } from "../utils/essFormat.js";
-import { parseGuid } from "../utils/essRequest.js";
-import type { PagedResult } from "../utils/essResponse.js";
-import { essField, parseEssBody } from "../utils/essValidation.js";
+} from "../../models/maintenance/approvalMaintenance.js";
+import { listAvailableActions } from "../../models/maintenance/notificationMaintenance.js";
+import { employeeExists } from "../../models/peoplePicker.js";
+import { HttpError } from "../../utils/errors.js";
+import { toEssGuid, toEssRoundTripUtc } from "../../utils/essFormat.js";
+import { parseGuid } from "../../utils/essRequest.js";
+import type { PagedResult } from "../../utils/essResponse.js";
+import { essField, parseEssBody } from "../../utils/essValidation.js";
 
 // Port of ESS_Backend ApprovalMaintenanceService + ApprovalStepMapper (+ controller result branches).
 

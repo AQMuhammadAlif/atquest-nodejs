@@ -1,8 +1,8 @@
 import { Request, Response } from "express";
-import * as service from "../services/notificationMaintenanceService.js";
-import { HttpError } from "../utils/errors.js";
-import { MAINTENANCE_MAX_PAGE_SIZE, queryGuid, queryInt, queryString, resolvePaging } from "../utils/essRequest.js";
-import { essCreated, essOk } from "../utils/essResponse.js";
+import * as service from "../../services/maintenance/notificationMaintenanceService.js";
+import { HttpError } from "../../utils/errors.js";
+import { MAINTENANCE_MAX_PAGE_SIZE, queryGuid, queryInt, queryString, resolvePaging } from "../../utils/essRequest.js";
+import { essCreated, essOk } from "../../utils/essResponse.js";
 
 // Port of ESS_Backend NotificationMaintenanceController (/v1/notification-maintenance).
 const MODULE_NAME = "Notification Maintenance";

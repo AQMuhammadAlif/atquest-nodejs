@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
-import { authHeader, EMPLOYEE_ID } from "./helpers.js";
+import { authHeader, EMPLOYEE_ID } from "../helpers.js";
 
-vi.mock("../src/models/approvalMaintenance.js", () => ({
+vi.mock("../../src/models/maintenance/approvalMaintenance.js", () => ({
   searchApprovalRules: vi.fn(),
   findRuleWithRouting: vi.fn(),
   listCustomApproverIds: vi.fn(),
@@ -17,14 +17,14 @@ vi.mock("../src/models/approvalMaintenance.js", () => ({
   updateRuleAndApprovers: vi.fn(),
   deleteRuleAndApprovers: vi.fn(),
 }));
-vi.mock("../src/models/notificationMaintenance.js", () => ({ listAvailableActions: vi.fn() }));
-vi.mock("../src/models/peoplePicker.js", () => ({ searchPeoplePicker: vi.fn(), employeeExists: vi.fn() }));
-vi.mock("../src/models/spGroup.js", () => ({ isSharePointGroupMember: vi.fn() }));
+vi.mock("../../src/models/maintenance/notificationMaintenance.js", () => ({ listAvailableActions: vi.fn() }));
+vi.mock("../../src/models/peoplePicker.js", () => ({ searchPeoplePicker: vi.fn(), employeeExists: vi.fn() }));
+vi.mock("../../src/models/spGroup.js", () => ({ isSharePointGroupMember: vi.fn() }));
 
-import * as model from "../src/models/approvalMaintenance.js";
-import * as notification from "../src/models/notificationMaintenance.js";
-import * as people from "../src/models/peoplePicker.js";
-import { app } from "../src/app.js";
+import * as model from "../../src/models/maintenance/approvalMaintenance.js";
+import * as notification from "../../src/models/maintenance/notificationMaintenance.js";
+import * as people from "../../src/models/peoplePicker.js";
+import { app } from "../../src/app.js";
 
 const BASE = "/v1/approval-maintenance";
 const RULE_ID = "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE";

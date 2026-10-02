@@ -10,7 +10,7 @@ generator client {
 datasource db {
   provider = "sqlserver"
   url      = env("DATABASE_URL")
-  schemas  = ["rbac", "General"]
+  schemas  = ["rbac", "General", "Employee"]
 }
 
 model User {
@@ -99,7 +99,94 @@ model Employee {
   employeeId     String  @id @map("EmployeeID") @db.UniqueIdentifier
   loginName      String? @map("LoginName") @db.VarChar(100)
   employeeStatus String? @map("EmployeeStatus") @db.VarChar(50)
+  employeeCode   String?   @map("EmployeeCode") @db.VarChar(50)
+  employeeName   String?   @map("EmployeeName") @db.VarChar(100)
+  areaCode       String?   @map("AreaCode") @db.VarChar(50)
+  areaName       String?   @map("AreaName") @db.VarChar(100)
+  subAreaCode    String?   @map("SubAreaCode") @db.VarChar(50)
+  subAreaName    String?   @map("SubAreaName") @db.VarChar(100)
+  positionCode   String?   @map("PositionCode") @db.VarChar(50)
+  positionName   String?   @map("PositionName") @db.VarChar(100)
+  jobKeyName     String?   @map("JobKeyName") @db.VarChar(100)
+  joinDate       DateTime? @map("JoinDate") @db.SmallDateTime
+  managerName    String?   @map("ManagerName") @db.VarChar(100)
 
   @@map("Employee")
+  @@schema("General")
+}
+
+// General.Role (approver roles; named GeneralRole to avoid clashing with rbac.Roles).
+model GeneralRole {
+  id            String    @id @map("ID") @db.UniqueIdentifier
+  applicationId String?   @map("ApplicationID") @db.UniqueIdentifier
+  roleCode      String?   @map("RoleCode") @db.NVarChar(50)
+  roleDesc      String?   @map("RoleDesc") @db.NVarChar(Max)
+  needHierarchy Boolean?  @map("NeedHierarchy")
+  createdBy     String?   @map("CreatedBy") @db.UniqueIdentifier
+  createdDate   DateTime? @map("CreatedDate") @db.DateTime
+  modifiedBy    String?   @map("ModifiedBy") @db.UniqueIdentifier
+  modifiedDate  DateTime? @map("ModifiedDate") @db.DateTime
+
+  @@map("Role")
+  @@schema("General")
+}
+
+// Read-only subsets of the org-structure dropdown tables.
+model Company {
+  id       Int     @id @map("Id")
+  code     String  @map("Code") @db.VarChar(50)
+  name     String  @map("Name") @db.VarChar(150)
+  isActive Boolean @map("IsActive")
+
+  @@map("Company")
+  @@schema("Employee")
+}
+
+model Division {
+  id        Int     @id @map("Id")
+  companyId Int     @map("CompanyId")
+  code      String  @map("Code") @db.VarChar(50)
+  name      String  @map("Name") @db.VarChar(150)
+  isActive  Boolean @map("IsActive")
+
+  @@map("Division")
+  @@schema("Employee")
+}
+
+model UnitSection {
+  id         Int     @id @map("Id")
+  divisionId Int     @map("DivisionId")
+  code       String  @map("Code") @db.VarChar(50)
+  name       String  @map("Name") @db.VarChar(150)
+  isActive   Boolean @map("IsActive")
+
+  @@map("UnitSection")
+  @@schema("Employee")
+}
+
+model MaintenanceCategory {
+  id       Int     @id @map("Id")
+  name     String  @map("Name") @db.VarChar(150)
+  isActive Boolean @map("IsActive")
+
+  @@map("MaintenanceCategory")
+  @@schema("General")
+}
+
+model MaintenanceType {
+  id       Int     @id @map("Id")
+  name     String  @map("Name") @db.VarChar(150)
+  isActive Boolean @map("IsActive")
+
+  @@map("MaintenanceType")
+  @@schema("General")
+}
+
+model MaintenanceStatus {
+  id       Int     @id @map("Id")
+  name     String  @map("Name") @db.VarChar(150)
+  isActive Boolean @map("IsActive")
+
+  @@map("MaintenanceStatus")
   @@schema("General")
 }

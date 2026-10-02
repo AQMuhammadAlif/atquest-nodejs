@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
-import { authHeader, EMPLOYEE_ID } from "./helpers.js";
+import { authHeader, EMPLOYEE_ID } from "../helpers.js";
 
-vi.mock("../src/models/notificationMaintenance.js", () => ({
+vi.mock("../../src/models/maintenance/notificationMaintenance.js", () => ({
   searchEmailTemplates: vi.fn(),
   findEmailTemplateView: vi.fn(),
   listAvailableActions: vi.fn(),
@@ -14,10 +14,10 @@ vi.mock("../src/models/notificationMaintenance.js", () => ({
   updateEmailTemplate: vi.fn(),
   deleteEmailTemplate: vi.fn(),
 }));
-vi.mock("../src/models/spGroup.js", () => ({ isSharePointGroupMember: vi.fn() }));
+vi.mock("../../src/models/spGroup.js", () => ({ isSharePointGroupMember: vi.fn() }));
 
-import * as model from "../src/models/notificationMaintenance.js";
-import { app } from "../src/app.js";
+import * as model from "../../src/models/maintenance/notificationMaintenance.js";
+import { app } from "../../src/app.js";
 
 const BASE = "/v1/notification-maintenance";
 const TEMPLATE_ID = "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE";

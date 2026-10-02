@@ -11,12 +11,12 @@ import {
   searchEmailTemplates,
   updateEmailTemplate,
   type EmailTemplateViewRow,
-} from "../models/notificationMaintenance.js";
+} from "../../models/maintenance/notificationMaintenance.js";
 import { randomUUID } from "node:crypto";
-import { HttpError } from "../utils/errors.js";
-import { toEssGuid } from "../utils/essFormat.js";
-import type { PagedResult } from "../utils/essResponse.js";
-import { essField, parseEssBody } from "../utils/essValidation.js";
+import { HttpError } from "../../utils/errors.js";
+import { toEssGuid } from "../../utils/essFormat.js";
+import type { PagedResult } from "../../utils/essResponse.js";
+import { essField, parseEssBody } from "../../utils/essValidation.js";
 
 // Port of ESS_Backend NotificationMaintenanceService (+ controller result branches).
 

@@ -89,8 +89,15 @@ export const essField = {
     });
   },
 
-  optionalString() {
-    return z.string({ invalid_type_error: "The JSON value could not be converted to System.String." }).nullish();
+  // string? with an optional [MaxLength(n)].
+  optionalString(name?: string, maxLength?: number) {
+    const schema = z.string({ invalid_type_error: "The JSON value could not be converted to System.String." });
+    if (name === undefined || maxLength === undefined) {
+      return schema.nullish();
+    }
+    return schema
+      .max(maxLength, `The field ${name} must be a string or array type with a maximum length of '${maxLength}'.`)
+      .nullish();
   },
 
   // Non-nullable Guid: missing => Guid.Empty, unparseable => binding error.
