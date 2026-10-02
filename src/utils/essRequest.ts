@@ -132,3 +132,62 @@ export function resolvePaging(input: PagingInput, maxPageSize = ESS_PAGINATION.m
   }
   return { page, pageSize };
 }
+
+// Approximates DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.None):
+// ISO 8601 (yyyy-MM-dd[THH:mm[:ss[.fffffff]]][Z|±hh:mm]) or invariant M/d/yyyy [h:mm[:ss]] [AM|PM].
+// Returns the wall-clock value as a Date whose UTC fields hold it (how Prisma binds DATETIME),
+// or null when unparseable. Values with an offset are converted to server-local time, like .NET.
+export function parseDotNetDateTime(value: string): Date | null {
+  const text = value.trim();
+  const iso =
+    /^(\d{4})-(\d{1,2})-(\d{1,2})(?:[T ](\d{1,2}):(\d{2})(?::(\d{2})(?:\.(\d{1,7}))?)?)?\s*(Z|[+-]\d{2}:?\d{2})?$/i.exec(text);
+  const us = /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?)?$/i.exec(text);
+
+  let parts: { y: number; mo: number; d: number; h: number; mi: number; s: number; ms: number } | null = null;
+  let offset: string | undefined;
+
+  if (iso) {
+    const [, y, mo, d, h = "0", mi = "0", s = "0", frac = "0", tz] = iso;
+    parts = { y: +y, mo: +mo, d: +d, h: +h, mi: +mi, s: +s, ms: Math.floor(Number(`0.${frac}`) * 1000) };
+    offset = tz;
+  } else if (us) {
+    const [, mo, d, y, h = "0", mi = "0", s = "0", meridiem] = us;
+    let hour = +h;
+    if (meridiem) {
+      if (hour < 1 || hour > 12) return null;
+      hour = (hour % 12) + (meridiem.toUpperCase() === "PM" ? 12 : 0);
+    }
+    parts = { y: +y, mo: +mo, d: +d, h: hour, mi: +mi, s: +s, ms: 0 };
+  }
+  if (!parts) return null;
+
+  const { y, mo, d, h, mi, s, ms } = parts;
+  const wall = new Date(Date.UTC(y, mo - 1, d, h, mi, s, ms));
+  const valid =
+    wall.getUTCFullYear() === y &&
+    wall.getUTCMonth() === mo - 1 &&
+    wall.getUTCDate() === d &&
+    h < 24 &&
+    mi < 60 &&
+    s < 60;
+  if (!valid) return null;
+
+  if (!offset) return wall;
+
+  const offsetMinutes =
+    offset.toUpperCase() === "Z"
+      ? 0
+      : (offset[0] === "-" ? -1 : 1) * (Number(offset.slice(1, 3)) * 60 + Number(offset.slice(-2)));
+  const instant = new Date(wall.getTime() - offsetMinutes * 60_000);
+  return new Date(
+    Date.UTC(
+      instant.getFullYear(),
+      instant.getMonth(),
+      instant.getDate(),
+      instant.getHours(),
+      instant.getMinutes(),
+      instant.getSeconds(),
+      instant.getMilliseconds(),
+    ),
+  );
+}

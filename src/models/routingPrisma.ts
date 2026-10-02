@@ -1,6 +1,7 @@
-import { Prisma, PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "../generated/routing/index.js";
 
-export const prisma = new PrismaClient();
+// SEPRoutingManagement (ROUTING_DATABASE_URL).
+export const routingPrisma = new PrismaClient();
 
 // Prisma binds a JS null as an int-typed NULL, which SQL Server refuses to convert to
 // uniqueidentifier. Emit a literal NULL instead (what ESS's DBNull.Value achieves).
