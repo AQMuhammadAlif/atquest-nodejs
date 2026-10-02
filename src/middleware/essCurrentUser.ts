@@ -1,21 +1,35 @@
 import { NextFunction, Request, Response } from "express";
+import { isSharePointGroupMember } from "../models/spGroup.js";
 import { parseGuid } from "../utils/essRequest.js";
 
 declare global {
   namespace Express {
     interface Request {
       employeeId?: string;
-      isEssAdmin?: boolean;
     }
   }
 }
 
-// TODO: placeholder identity. ESS_Backend resolves the caller's General.Employee id from the
-// session (ICurrentUserService.EmployeeId) and IsEssAdmin from [uniten].[IsInGroup] 'ESS Admin'.
-// Until atquest links rbac.Users to employees, every request acts as ESS_ACTING_EMPLOYEE_ID.
-export function essCurrentUser(req: Request, _res: Response, next: NextFunction) {
-  const employeeId = parseGuid(process.env.ESS_ACTING_EMPLOYEE_ID ?? "");
-  req.employeeId = employeeId ?? undefined;
-  req.isEssAdmin = (process.env.ESS_ACTING_IS_ESS_ADMIN ?? "").trim().toLowerCase() === "true";
-  next();
+// Account Simulator impersonation header sent by the ESS frontend.
+const ACT_AS_EMPLOYEE_HEADER = "X-Act-As-Employee-Id";
+const ACCOUNT_SIMULATOR_GROUP = "Support Team - Account Simulator";
+
+// Port of ESS CurrentUserService.EmployeeId: the JWT `employeeId` claim, unless a member of
+// the Account Simulator SharePoint group sends X-Act-As-Employee-Id.
+export async function essCurrentUser(req: Request, _res: Response, next: NextFunction) {
+  try {
+    const realEmployeeId = req.tokenEmployeeId ? parseGuid(req.tokenEmployeeId) : null;
+    const actAsHeader = req.header(ACT_AS_EMPLOYEE_HEADER);
+    const simulatedEmployeeId = actAsHeader ? parseGuid(actAsHeader) : null;
+
+    const canActAs =
+      simulatedEmployeeId !== null &&
+      (realEmployeeId !== null || req.loginName !== undefined) &&
+      (await isSharePointGroupMember(ACCOUNT_SIMULATOR_GROUP, realEmployeeId, req.loginName ?? null));
+
+    req.employeeId = (canActAs ? simulatedEmployeeId : realEmployeeId) ?? undefined;
+    next();
+  } catch (err) {
+    next(err);
+  }
 }

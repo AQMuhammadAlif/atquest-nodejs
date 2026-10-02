@@ -6,6 +6,8 @@ declare global {
   namespace Express {
     interface Request {
       userId?: string;
+      tokenEmployeeId?: string;
+      loginName?: string;
     }
   }
 }
@@ -19,7 +21,10 @@ export function requireAuth(req: Request, _res: Response, next: NextFunction) {
 
   const token = header.slice("Bearer ".length).trim();
   try {
-    req.userId = verifyToken(token).sub;
+    const claims = verifyToken(token);
+    req.userId = claims.sub;
+    req.tokenEmployeeId = claims.employeeId;
+    req.loginName = claims.loginName;
     next();
   } catch {
     next(new HttpError(401, "Invalid or expired token"));

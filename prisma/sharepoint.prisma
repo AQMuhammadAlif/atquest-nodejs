@@ -1,0 +1,47 @@
+// SharePointDBEss (shared with ESS_Backend). Read-only subset used by the
+// X-Act-As-Employee-Id check (ESS CurrentUserService.CanActAsAnotherEmployee).
+// NEVER run `prisma db push` / `prisma migrate` with this schema.
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/sharepoint"
+}
+
+datasource db {
+  provider = "sqlserver"
+  url      = env("SHAREPOINT_DATABASE_URL")
+  schemas  = ["uniten"]
+}
+
+model SPGroup {
+  spGroupId String @id @map("SPGroupID") @db.UniqueIdentifier
+  name      String @map("Name") @db.NVarChar(300)
+
+  groupUsers SPGroupUser[]
+
+  @@map("SPGroup")
+  @@schema("uniten")
+}
+
+model SPUser {
+  userGuidId String  @id @map("UserGuidID") @db.UniqueIdentifier
+  employeeId String? @map("EmployeeId") @db.UniqueIdentifier
+  loginName  String  @map("LoginName") @db.NVarChar(300)
+
+  groupUsers SPGroupUser[]
+
+  @@map("SPUser")
+  @@schema("uniten")
+}
+
+model SPGroupUser {
+  spGroupUserId String  @id @map("SPGroupUserID") @db.UniqueIdentifier
+  spGroupId     String  @map("SPGroupId") @db.UniqueIdentifier
+  spUserId      String? @map("SPUserID") @db.UniqueIdentifier
+
+  group SPGroup @relation(fields: [spGroupId], references: [spGroupId], onDelete: NoAction, onUpdate: NoAction)
+  user  SPUser? @relation(fields: [spUserId], references: [userGuidId], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("SPGroupUser")
+  @@schema("uniten")
+}

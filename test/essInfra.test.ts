@@ -1,6 +1,6 @@
 import express, { Router } from "express";
 import request from "supertest";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { requireAuth } from "../src/middleware/auth.js";
 import { essCurrentUser } from "../src/middleware/essCurrentUser.js";
@@ -20,13 +20,16 @@ import {
 } from "../src/utils/essRequest.js";
 import { essCreated, essOk } from "../src/utils/essResponse.js";
 import { parseEssBody } from "../src/utils/essValidation.js";
-import { authHeader } from "./helpers.js";
+import { authHeader, EMPLOYEE_ID } from "./helpers.js";
+
+vi.mock("../src/models/spGroup.js", () => ({ isSharePointGroupMember: vi.fn() }));
+import { isSharePointGroupMember } from "../src/models/spGroup.js";
 
 function buildApp() {
   const router = Router();
   router.use(requireAuth, essCurrentUser);
 
-  router.get("/me", (req, res) => essOk(res, { employeeId: req.employeeId, isEssAdmin: req.isEssAdmin }, "data retrieved."));
+  router.get("/me", (req, res) => essOk(res, { employeeId: req.employeeId ?? null }, "data retrieved."));
   router.get("/query", (req, res) =>
     essOk(
       res,
@@ -81,19 +84,43 @@ const app = buildApp();
 const get = (path: string) => request(app).get(path).set(authHeader());
 
 describe("ESS contract infrastructure", () => {
+  beforeEach(() => {
+    vi.mocked(isSharePointGroupMember).mockReset();
+  });
+
   it("returns the ESS ApiResponse shape on 401 from requireAuth", async () => {
     const res = await request(app).get("/v1/me");
     expect(res.status).toBe(401);
     expect(res.body).toEqual({ status: "error", message: "Unauthorized", data: null });
   });
 
-  it("exposes the placeholder identity, lowercased", async () => {
+  it("uses the employeeId claim as the current employee", async () => {
     const res = await get("/v1/me");
-    expect(res.body).toEqual({
-      status: "success",
-      message: "data retrieved.",
-      data: { employeeId: "58308791-89fb-45d1-8a9e-72e430f8e677", isEssAdmin: true },
-    });
+    expect(res.body).toEqual({ status: "success", message: "data retrieved.", data: { employeeId: EMPLOYEE_ID } });
+    expect(isSharePointGroupMember).not.toHaveBeenCalled();
+  });
+
+  it("has no employee when the token has no employeeId claim", async () => {
+    const res = await request(app).get("/v1/me").set(authHeader("1", { userName: "svc" }));
+    expect(res.body.data).toEqual({ employeeId: null });
+  });
+
+  it("honours X-Act-As-Employee-Id for Account Simulator members", async () => {
+    vi.mocked(isSharePointGroupMember).mockResolvedValue(true);
+    const res = await get("/v1/me").set("X-Act-As-Employee-Id", "11111111-2222-3333-4444-555555555555");
+    expect(res.body.data.employeeId).toBe("11111111-2222-3333-4444-555555555555");
+    expect(isSharePointGroupMember).toHaveBeenCalledWith("Support Team - Account Simulator", EMPLOYEE_ID, "jdoe");
+  });
+
+  it("ignores X-Act-As-Employee-Id for non-members and for non-GUID values", async () => {
+    vi.mocked(isSharePointGroupMember).mockResolvedValue(false);
+    const member = await get("/v1/me").set("X-Act-As-Employee-Id", "11111111-2222-3333-4444-555555555555");
+    expect(member.body.data.employeeId).toBe(EMPLOYEE_ID);
+
+    vi.mocked(isSharePointGroupMember).mockClear();
+    const garbage = await get("/v1/me").set("X-Act-As-Employee-Id", "nope");
+    expect(garbage.body.data.employeeId).toBe(EMPLOYEE_ID);
+    expect(isSharePointGroupMember).not.toHaveBeenCalled();
   });
 
   it("binds query params case-insensitively, first value wins, empty => null", async () => {

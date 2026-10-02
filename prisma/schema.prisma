@@ -10,7 +10,7 @@ generator client {
 datasource db {
   provider = "sqlserver"
   url      = env("DATABASE_URL")
-  schemas  = ["rbac"]
+  schemas  = ["rbac", "General"]
 }
 
 model User {
@@ -92,4 +92,14 @@ model UserRole {
   @@unique([roleId, userId])
   @@map("UserRoles")
   @@schema("rbac")
+}
+
+// Read-only subset of General.Employee (only the columns atquest reads).
+model Employee {
+  employeeId     String  @id @map("EmployeeID") @db.UniqueIdentifier
+  loginName      String? @map("LoginName") @db.VarChar(100)
+  employeeStatus String? @map("EmployeeStatus") @db.VarChar(50)
+
+  @@map("Employee")
+  @@schema("General")
 }

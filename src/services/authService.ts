@@ -1,6 +1,8 @@
 import { z } from "zod";
+import { findEmployeeByLoginName } from "../models/employee.js";
 import { findAuthProviderById, findUserByUserNameOrEmail, updateLoginState } from "../models/user.js";
 import { HttpError } from "../utils/errors.js";
+import { toEssGuid } from "../utils/essFormat.js";
 import { verifyPassword } from "../utils/password.js";
 import { signToken } from "../utils/token.js";
 
@@ -20,6 +22,19 @@ function maxFailedLogins() {
 
 function lockMinutes() {
   return Number(process.env.AUTH_LOCK_MINUTES ?? 15);
+}
+
+// ESS UserSessionService.GetEmployeeIdAsync: General.Employee.LoginName = rbac.Users.UserName.
+async function resolveEmployeeId(userName: string) {
+  const loginName = userName.trim();
+  const employee = loginName ? await findEmployeeByLoginName(loginName) : null;
+  if (!employee) {
+    throw new HttpError(404, "Employee not found.");
+  }
+  if (employee.employeeStatus?.toLowerCase() !== "active") {
+    throw new HttpError(403, "Employee is inactive.");
+  }
+  return toEssGuid(employee.employeeId)!;
 }
 
 export async function login(input: unknown) {
@@ -77,10 +92,13 @@ export async function login(input: unknown) {
     lastLoginAt: new Date(),
   });
 
+  const employeeId = await resolveEmployeeId(user.userName);
+
   return {
-    token: signToken(user.userId.toString()),
+    token: signToken(user.userId.toString(), { userName: user.userName, email: user.email, employeeId }),
     user: {
       id: user.userId.toString(),
+      employeeId,
       userName: user.userName,
       email: user.email,
       name: user.displayName,

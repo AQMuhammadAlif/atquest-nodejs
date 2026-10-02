@@ -7,7 +7,11 @@ vi.mock("../src/models/user.js", () => ({
   updateLoginState: vi.fn(),
 }));
 
+vi.mock("../src/models/employee.js", () => ({ findEmployeeByLoginName: vi.fn() }));
+
 import * as users from "../src/models/user.js";
+import * as employees from "../src/models/employee.js";
+import { verifyToken } from "../src/utils/token.js";
 import { app } from "../src/app.js";
 
 const SALT = "AAECAwQFBgcICQoLDA0ODw==";
@@ -38,6 +42,9 @@ describe("POST /api/auth/login (rbac.Users)", () => {
     vi.mocked(users.findUserByUserNameOrEmail).mockReset();
     vi.mocked(users.updateLoginState).mockReset();
     vi.mocked(users.findAuthProviderById).mockReset().mockResolvedValue({ authProviderCode: "local" } as never);
+    vi.mocked(employees.findEmployeeByLoginName)
+      .mockReset()
+      .mockResolvedValue({ employeeId: "58308791-89FB-45D1-8A9E-72E430F8E677", employeeStatus: "Active" });
   });
 
   it("logs in by userNameOrEmail, resets counters and returns a token", async () => {
@@ -120,5 +127,35 @@ describe("POST /api/auth/login (rbac.Users)", () => {
       isLocked: true,
       lockedAt: expect.any(Date),
     });
+  });
+
+  it("embeds the employee resolved by LoginName = UserName in the token, like ESS", async () => {
+    vi.mocked(users.findUserByUserNameOrEmail).mockResolvedValue(makeUser() as never);
+    const res = await login({ userNameOrEmail: "jdoe@example.com", password: "P@ssw0rd!" });
+
+    expect(res.status).toBe(200);
+    expect(employees.findEmployeeByLoginName).toHaveBeenCalledWith("jdoe");
+    expect(res.body.data.user.employeeId).toBe("58308791-89fb-45d1-8a9e-72e430f8e677");
+    expect(verifyToken(res.body.data.token)).toEqual({
+      sub: "7",
+      employeeId: "58308791-89fb-45d1-8a9e-72e430f8e677",
+      loginName: "jdoe",
+    });
+  });
+
+  it("returns 404 Employee not found. when no General.Employee matches", async () => {
+    vi.mocked(users.findUserByUserNameOrEmail).mockResolvedValue(makeUser() as never);
+    vi.mocked(employees.findEmployeeByLoginName).mockResolvedValue(null);
+    const res = await login({ userNameOrEmail: "jdoe", password: "P@ssw0rd!" });
+    expect(res.status).toBe(404);
+    expect(res.body.message).toBe("Employee not found.");
+  });
+
+  it("returns 403 Employee is inactive. for a non-Active employee", async () => {
+    vi.mocked(users.findUserByUserNameOrEmail).mockResolvedValue(makeUser() as never);
+    vi.mocked(employees.findEmployeeByLoginName).mockResolvedValue({ employeeId: "x", employeeStatus: "Resigned" });
+    const res = await login({ userNameOrEmail: "jdoe", password: "P@ssw0rd!" });
+    expect(res.status).toBe(403);
+    expect(res.body.message).toBe("Employee is inactive.");
   });
 });
