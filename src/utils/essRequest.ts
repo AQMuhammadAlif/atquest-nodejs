@@ -1,40 +1,27 @@
 import { NextFunction, Request, Response } from "express";
 import { HttpError } from "./errors.js";
+import { isNullOrWhiteSpace, tryParseGuid } from "./essDotnet.js";
 import { EssValidationError } from "./essValidation.js";
 
 // Helpers that reproduce ASP.NET Core model binding for the /v1 endpoints migrated
 // from ESS_Backend: case-insensitive query keys, empty string => null, first value wins,
 // and a ProblemDetails 400 for values that cannot be converted.
 
-const GUID_PATTERNS = [
-  /^([0-9a-f]{8})-([0-9a-f]{4})-([0-9a-f]{4})-([0-9a-f]{4})-([0-9a-f]{12})$/i,
-  /^\{([0-9a-f]{8})-([0-9a-f]{4})-([0-9a-f]{4})-([0-9a-f]{4})-([0-9a-f]{12})\}$/i,
-  /^\(([0-9a-f]{8})-([0-9a-f]{4})-([0-9a-f]{4})-([0-9a-f]{4})-([0-9a-f]{12})\)$/i,
-  /^([0-9a-f]{8})([0-9a-f]{4})([0-9a-f]{4})([0-9a-f]{4})([0-9a-f]{12})$/i,
-];
-
-export const EMPTY_GUID = "00000000-0000-0000-0000-000000000000";
+export { EMPTY_GUID } from "./essDotnet.js";
 
 // Returns the GUID in .NET's default "D" format (lowercase), or null if it is not a GUID.
+// GuidConverter binds with new Guid(text.Trim()), so this accepts every .NET Guid format.
 export function parseGuid(value: string): string | null {
-  const trimmed = value.trim();
-  for (const pattern of GUID_PATTERNS) {
-    const match = pattern.exec(trimmed);
-    if (match) {
-      return match.slice(1).join("-").toLowerCase();
-    }
-  }
-  return null;
+  return tryParseGuid(value);
 }
 
-function pascal(name: string) {
-  return name.charAt(0).toUpperCase() + name.slice(1);
-}
-
+// ModelState key and message use the action parameter's name exactly as declared in C#
+// (e.g. `employeeId`), so callers pass that name.
 function invalid(name: string, raw: string): never {
-  throw new EssValidationError({ [pascal(name)]: [`The value '${raw}' is not valid for ${pascal(name)}.`] });
+  throw new EssValidationError({ [name]: [`The value '${raw}' is not valid for ${name}.`] });
 }
 
+// SimpleTypeModelBinder: null/empty/whitespace-only values bind to null (ConvertEmptyStringToNull).
 export function queryString(req: Request, name: string): string | undefined {
   const wanted = name.toLowerCase();
   const key = Object.keys(req.query).find((candidate) => candidate.toLowerCase() === wanted);
@@ -43,7 +30,7 @@ export function queryString(req: Request, name: string): string | undefined {
   }
   const raw = req.query[key];
   const value = Array.isArray(raw) ? raw[0] : raw;
-  return typeof value === "string" && value !== "" ? value : undefined;
+  return typeof value === "string" && !isNullOrWhiteSpace(value) ? value : undefined;
 }
 
 export function queryInt(req: Request, name: string): number | undefined {
@@ -51,7 +38,8 @@ export function queryInt(req: Request, name: string): number | undefined {
   if (raw === undefined) {
     return undefined;
   }
-  if (!/^\s*[+-]?\d+\s*$/.test(raw)) {
+  // Int32Converter (NumberStyles.Integer): only U+0009-U+000D and U+0020 count as white space.
+  if (!/^[\t-\r ]*[+-]?\d+[\t-\r ]*$/.test(raw)) {
     invalid(name, raw);
   }
   const value = Number(raw);
@@ -78,6 +66,21 @@ export function queryBool(req: Request, name: string): boolean | undefined {
   if (normalized === "true") return true;
   if (normalized === "false") return false;
   return invalid(name, raw);
+}
+
+// [FromQuery] DateTime? — DateTimeConverter with the invariant culture (see parseDotNetDateTime).
+export function queryDateTime(req: Request, name: string): Date | undefined {
+  const raw = queryString(req, name);
+  if (raw === undefined) {
+    return undefined;
+  }
+  return parseDotNetDateTime(raw) ?? invalid(name, raw);
+}
+
+// A Guid route value without a `:guid` constraint: the route matches, binding fails with a 400.
+export function routeGuid(req: Request, name: string): string {
+  const raw = String(req.params[name] ?? "");
+  return parseGuid(raw) ?? invalid(name, raw);
 }
 
 // Route-constraint equivalent of `{name:guid}`: a non-GUID segment does not match the route.

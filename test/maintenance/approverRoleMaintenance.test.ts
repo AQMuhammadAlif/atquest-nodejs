@@ -74,7 +74,8 @@ describe("module-ddl / role-ddl", () => {
     }
     const bad = await get(`${BASE}/role-ddl?moduleId=x`);
     expect(bad.status).toBe(400);
-    expect(bad.body.errors).toEqual({ ModuleId: ["The value 'x' is not valid for ModuleId."] });
+    // ModelState key = the C# action parameter name ([FromQuery] Guid moduleId).
+    expect(bad.body.errors).toEqual({ moduleId: ["The value 'x' is not valid for moduleId."] });
   });
 
   it("role-ddl calls Role_GetRoles with the module", async () => {

@@ -205,7 +205,7 @@ When porting a controller, keep ESS's observable behaviour:
 - Serialize with `toEssGuid` (lowercase), `toEssDate` (.NET `DateTime`, no `Z`) or `toEssRoundTripUtc` (`ToString("o")`), matching what the ESS DTO did.
 - Multi-step writes go in one `$transaction` when ESS used one (or a single `SaveChanges`).
 
-The maintenance module (`docs/maintenance-cutover.md`) is the reference implementation.
+The maintenance module (`docs/maintenance-cutover.md`) is the reference implementation. Routing Management (approval workflow, in-tray, routing logs, process, re-assign) is documented in `docs/routing-management.md`.
 
 ## 8. Tests
 

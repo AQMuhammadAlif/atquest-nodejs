@@ -67,8 +67,10 @@ beforeEach(() => {
 describe("GET /v1/notification-maintenance", () => {
   it("requires authentication", async () => {
     const res = await request(app).get(BASE);
+    // ESS's JwtBearer challenge: empty body + WWW-Authenticate.
     expect(res.status).toBe(401);
-    expect(res.body).toEqual({ status: "error", message: "Unauthorized", data: null });
+    expect(res.headers["www-authenticate"]).toBe("Bearer");
+    expect(res.text).toBe("");
   });
 
   it("returns a paged result in the ESS shape", async () => {
@@ -108,7 +110,8 @@ describe("GET /v1/notification-maintenance", () => {
 
     const guid = await get(`${BASE}?routingId=abc`);
     expect(guid.status).toBe(400);
-    expect(guid.body.errors).toEqual({ RoutingId: ["The value 'abc' is not valid for RoutingId."] });
+    // ModelState key = the C# action parameter name ([FromQuery] Guid? routingId).
+    expect(guid.body.errors).toEqual({ routingId: ["The value 'abc' is not valid for routingId."] });
   });
 });
 

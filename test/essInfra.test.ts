@@ -2,7 +2,7 @@ import express, { Router } from "express";
 import request from "supertest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
-import { requireAuth } from "../src/middleware/auth.js";
+import { requireEssAuth } from "../src/middleware/auth.js";
 import { essCurrentUser } from "../src/middleware/essCurrentUser.js";
 import { essErrorHandler } from "../src/middleware/essErrors.js";
 import { asyncHandler } from "../src/utils/asyncHandler.js";
@@ -27,7 +27,7 @@ import { isSharePointGroupMember } from "../src/models/spGroup.js";
 
 function buildApp() {
   const router = Router();
-  router.use(requireAuth, essCurrentUser);
+  router.use(requireEssAuth, essCurrentUser);
 
   router.get("/me", (req, res) => essOk(res, { employeeId: req.employeeId ?? null }, "data retrieved."));
   router.get("/query", (req, res) =>
@@ -88,10 +88,17 @@ describe("ESS contract infrastructure", () => {
     vi.mocked(isSharePointGroupMember).mockReset();
   });
 
-  it("returns the ESS ApiResponse shape on 401 from requireAuth", async () => {
+  it("answers a missing token with JwtBearer's empty 401 challenge", async () => {
     const res = await request(app).get("/v1/me");
     expect(res.status).toBe(401);
-    expect(res.body).toEqual({ status: "error", message: "Unauthorized", data: null });
+    expect(res.headers["www-authenticate"]).toBe("Bearer");
+    expect(res.text).toBe("");
+  });
+
+  it("answers an invalid token with invalid_token", async () => {
+    const res = await request(app).get("/v1/me").set({ Authorization: "Bearer not-a-jwt" });
+    expect(res.status).toBe(401);
+    expect(res.headers["www-authenticate"]).toBe('Bearer error="invalid_token"');
   });
 
   it("uses the employeeId claim as the current employee", async () => {
@@ -123,20 +130,23 @@ describe("ESS contract infrastructure", () => {
     expect(isSharePointGroupMember).not.toHaveBeenCalled();
   });
 
-  it("binds query params case-insensitively, first value wins, empty => null", async () => {
-    const res = await get("/v1/query?NAME=a&name=b&Count=5&id={58308791-89FB-45D1-8A9E-72E430F8E677}&active=");
+  it("binds query params case-insensitively, first value wins, empty/whitespace => null", async () => {
+    const res = await get("/v1/query?NAME=a&name=b&Count=5&id={58308791-89FB-45D1-8A9E-72E430F8E677}&active=%20");
     expect(res.body.data).toEqual({ name: "a", count: 5, id: "58308791-89fb-45d1-8a9e-72e430f8e677", active: null });
   });
 
+  // The ModelState key and message use the action parameter name as declared in C#.
   it.each([
-    ["count=abc", "Count", "The value 'abc' is not valid for Count."],
-    ["count=99999999999", "Count", "The value '99999999999' is not valid for Count."],
-    ["id=nope", "Id", "The value 'nope' is not valid for Id."],
-    ["active=yes", "Active", "The value 'yes' is not valid for Active."],
+    ["count=abc", "count", "The value 'abc' is not valid for count."],
+    ["count=99999999999", "count", "The value '99999999999' is not valid for count."],
+    ["id=nope", "id", "The value 'nope' is not valid for id."],
+    ["active=yes", "active", "The value 'yes' is not valid for active."],
   ])("returns ProblemDetails 400 for unbindable %s", async (qs, key, message) => {
     const res = await get(`/v1/query?${qs}`);
     expect(res.status).toBe(400);
+    expect(res.headers["content-type"]).toBe("application/problem+json; charset=utf-8");
     expect(res.body).toMatchObject({ title: "One or more validation errors occurred.", status: 400, errors: { [key]: [message] } });
+    expect(res.body.traceId).toMatch(/^00-[0-9a-f]{32}-[0-9a-f]{16}-00$/);
   });
 
   it("resolves paging with defaults, legacy params and clamping", async () => {

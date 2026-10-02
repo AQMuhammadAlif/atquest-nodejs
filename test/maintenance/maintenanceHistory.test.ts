@@ -152,7 +152,8 @@ describe("GET /v1/employee/maintenance-history", () => {
     expect((await get(`${BASE}/maintenance-history?pageSize=0`)).body.message).toBe("PageSize must be >= 1.");
     const bad = await get(`${BASE}/maintenance-history?requestType=abc`);
     expect(bad.status).toBe(400);
-    expect(bad.body.errors).toEqual({ RequestType: ["The value 'abc' is not valid for RequestType."] });
+    // ModelState key = the C# action parameter name ([FromQuery] int? requestType).
+    expect(bad.body.errors).toEqual({ requestType: ["The value 'abc' is not valid for requestType."] });
   });
 });
 
