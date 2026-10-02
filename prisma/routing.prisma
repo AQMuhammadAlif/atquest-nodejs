@@ -111,11 +111,64 @@ model CustomApprover {
   @@schema("RM")
 }
 
-// Read-only subset of RM.Task: only used to block deleting rules that tasks reference.
+// RM.Task. Approval maintenance reads it to block deleting rules that tasks reference; the
+// routing engine (routing management) creates, updates and deletes tasks.
 model Task {
-  id            String @id @map("ID") @db.UniqueIdentifier
-  routingRuleId String @map("RoutingRuleID") @db.UniqueIdentifier
+  id               String    @id @map("ID") @db.UniqueIdentifier
+  routingRuleId    String    @map("RoutingRuleID") @db.UniqueIdentifier
+  sourceId         String    @map("SourceID") @db.UniqueIdentifier
+  applicationId    String    @map("ApplicationID") @db.UniqueIdentifier
+  applicantId      String?   @map("ApplicantID") @db.UniqueIdentifier
+  approvalTitle    String    @map("ApprovalTitle") @db.NVarChar(Max)
+  applicationRefNo String?   @map("ApplicationRefNo") @db.NVarChar(50)
+  displayText1     String?   @map("DisplayText1") @db.NVarChar(Max)
+  displayText2     String?   @map("DisplayText2") @db.NVarChar(Max)
+  displayText3     String?   @map("DisplayText3") @db.NVarChar(Max)
+  displayText4     String?   @map("DisplayText4") @db.NVarChar(Max)
+  displayText5     String?   @map("DisplayText5") @db.NVarChar(Max)
+  displayText6     String?   @map("DisplayText6") @db.NVarChar(Max)
+  displayText7     String?   @map("DisplayText7") @db.NVarChar(Max)
+  displayText8     String?   @map("DisplayText8") @db.NVarChar(Max)
+  displayText9     String?   @map("DisplayText9") @db.NVarChar(Max)
+  displayText10    String?   @map("DisplayText10") @db.NVarChar(Max)
+  displayText11    String?   @map("DisplayText11") @db.NVarChar(Max)
+  displayText12    String?   @map("DisplayText12") @db.NVarChar(Max)
+  displayText13    String?   @map("DisplayText13") @db.NVarChar(Max)
+  displayText14    String?   @map("DisplayText14") @db.NVarChar(Max)
+  displayText15    String?   @map("DisplayText15") @db.NVarChar(Max)
+  displayText16    String?   @map("DisplayText16") @db.NVarChar(Max)
+  displayText17    String?   @map("DisplayText17") @db.NVarChar(Max)
+  displayText18    String?   @map("DisplayText18") @db.NVarChar(Max)
+  displayText19    String?   @map("DisplayText19") @db.NVarChar(Max)
+  displayText20    String?   @map("DisplayText20") @db.NVarChar(Max)
+  approvalLevel    Int       @map("ApprovalLevel")
+  currentApproval  Boolean   @map("CurrentApproval")
+  approverId       String    @map("ApproverID") @db.UniqueIdentifier
+  approverAction   String?   @map("ApproverAction") @db.NVarChar(Max)
+  comment          String?   @map("Comment") @db.NVarChar(Max)
+  skipApproval     Boolean?  @map("SkipApproval")
+  createdDate      DateTime? @map("CreatedDate") @db.DateTime
+  modifiedDate     DateTime? @map("ModifiedDate") @db.DateTime
+  createdBy        String?   @map("CreatedBy") @db.UniqueIdentifier
+  modifiedBy       String?   @map("ModifiedBy") @db.UniqueIdentifier
 
   @@map("Task")
+  @@schema("RM")
+}
+
+// RM.TaskHistory (written by the routing engine).
+model TaskHistory {
+  id             String    @id @map("ID") @db.UniqueIdentifier
+  sourceId       String    @map("SourceID") @db.UniqueIdentifier
+  taskId         String?   @map("TaskID") @db.UniqueIdentifier
+  activityName   String    @map("ActivityName") @db.NVarChar(Max)
+  activityAction String    @map("ActivityAction") @db.NVarChar(50)
+  comment        String?   @map("Comment") @db.NVarChar(Max)
+  createdDate    DateTime? @map("CreatedDate") @db.DateTime
+  modifiedDate   DateTime? @map("ModifiedDate") @db.DateTime
+  createdBy      String?   @map("CreatedBy") @db.UniqueIdentifier
+  modifiedBy     String?   @map("ModifiedBy") @db.UniqueIdentifier
+
+  @@map("TaskHistory")
   @@schema("RM")
 }
