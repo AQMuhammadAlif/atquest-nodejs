@@ -1,4 +1,5 @@
 import { z, ZodError, ZodTypeAny } from "zod";
+import { EMPTY_GUID, parseGuid } from "./essRequest.js";
 
 // ASP.NET [ApiController] returns RFC 9110 ProblemDetails (not ApiResponse) when model
 // binding or data-annotation validation fails. EssValidationError carries those errors
@@ -62,7 +63,81 @@ function remapKeys(value: unknown, schema: ZodTypeAny): unknown {
   return value;
 }
 
+function int32() {
+  const message = "The JSON value could not be converted to System.Int32.";
+  return z
+    .number({ invalid_type_error: message })
+    .int(message)
+    .min(-2_147_483_648, message)
+    .max(2_147_483_647, message);
+}
+
+// Field builders that reproduce ASP.NET data-annotation / System.Text.Json binding semantics.
+export const essField = {
+  // [Required] string (rejects null, missing and whitespace-only), optional [MaxLength(n)].
+  requiredString(name: string, maxLength?: number) {
+    const required = `The ${name} field is required.`;
+    return z.string({ required_error: required, invalid_type_error: required }).superRefine((value, ctx) => {
+      if (value.trim().length === 0) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: required });
+      } else if (maxLength !== undefined && value.length > maxLength) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `The field ${name} must be a string or array type with a maximum length of '${maxLength}'.`,
+        });
+      }
+    });
+  },
+
+  optionalString() {
+    return z.string({ invalid_type_error: "The JSON value could not be converted to System.String." }).nullish();
+  },
+
+  // Non-nullable Guid: missing => Guid.Empty, unparseable => binding error.
+  guid() {
+    return z
+      .string({ invalid_type_error: "The JSON value could not be converted to System.Guid." })
+      .optional()
+      .transform((value, ctx) => {
+        if (value === undefined) return EMPTY_GUID;
+        const guid = parseGuid(value);
+        if (!guid) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, message: "The JSON value could not be converted to System.Guid." });
+          return z.NEVER;
+        }
+        return guid;
+      });
+  },
+
+  // Non-nullable int with the property initializer's default (JSON null is a binding error).
+  int(defaultValue: number) {
+    return int32().optional().transform((value) => value ?? defaultValue);
+  },
+
+  optionalInt() {
+    return int32().nullish().transform((value) => value ?? null);
+  },
+
+  optionalBool() {
+    return z
+      .boolean({ invalid_type_error: "The JSON value could not be converted to System.Boolean." })
+      .nullish()
+      .transform((value) => value ?? null);
+  },
+
+  // Non-nullable bool with the property initializer's default.
+  bool(defaultValue: boolean) {
+    return z
+      .boolean({ invalid_type_error: "The JSON value could not be converted to System.Boolean." })
+      .optional()
+      .transform((value) => value ?? defaultValue);
+  },
+};
+
 export function parseEssBody<T extends ZodTypeAny>(schema: T, body: unknown): z.output<T> {
+  if (body === undefined || body === null) {
+    throw new EssValidationError({ "": ["A non-empty request body is required."] });
+  }
   const result = schema.safeParse(remapKeys(body, schema));
   if (!result.success) {
     throw EssValidationError.fromZod(result.error);

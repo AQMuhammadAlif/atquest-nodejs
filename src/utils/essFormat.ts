@@ -16,3 +16,9 @@ export function toEssDate(value: Date | null | undefined): string | null {
 export function toEssGuid(value: string | null | undefined): string | null {
   return value ? value.toLowerCase() : null;
 }
+
+// DateTime.ToUniversalTime().ToString("o") on a value read from SQL Server (Kind treated as UTC):
+// always 7 fractional digits and a trailing Z, e.g. 2026-07-28T12:15:00.1230000Z.
+export function toEssRoundTripUtc(value: Date): string {
+  return `${value.toISOString().slice(0, 23)}0000Z`;
+}

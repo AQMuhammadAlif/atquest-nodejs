@@ -1,0 +1,121 @@
+// SEPRoutingManagement (shared with ESS_Backend). Mirrors tables ESS owns.
+// NEVER run `prisma db push` / `prisma migrate` with this schema. Only `prisma generate`.
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/routing"
+}
+
+datasource db {
+  provider = "sqlserver"
+  url      = env("ROUTING_DATABASE_URL")
+  schemas  = ["RM"]
+}
+
+model AvailableAction {
+  actionName String  @id @map("ActionName") @db.NVarChar(100)
+  actionType String? @map("ActionType") @db.NVarChar(200)
+
+  @@map("AvailableAction")
+  @@schema("RM")
+}
+
+model Routing {
+  id                   String    @id @map("ID") @db.UniqueIdentifier
+  routingName          String    @map("RoutingName") @db.NVarChar(500)
+  systemId             String    @map("SystemID") @db.UniqueIdentifier
+  applicationId        String    @map("ApplicationID") @db.UniqueIdentifier
+  applicationTypeId    String    @map("ApplicationTypeID") @db.UniqueIdentifier
+  applicationSubTypeId String    @map("ApplicationSubTypeID") @db.UniqueIdentifier
+  active               Boolean   @map("Active")
+  createdDate          DateTime? @map("CreatedDate") @db.DateTime
+  modifiedDate         DateTime? @map("ModifiedDate") @db.DateTime
+  createdBy            String?   @map("CreatedBy") @db.UniqueIdentifier
+  modifiedBy           String?   @map("ModifiedBy") @db.UniqueIdentifier
+
+  routingRules RoutingRule[]
+
+  @@map("Routing")
+  @@schema("RM")
+}
+
+model RoutingRule {
+  id                     String    @id @map("ID") @db.UniqueIdentifier
+  routingId              String    @map("RoutingID") @db.UniqueIdentifier
+  approvalTitle          String    @map("ApprovalTitle") @db.NVarChar(Max)
+  approvalLevel          Int       @map("ApprovalLevel")
+  approvalRole           String    @map("ApprovalRole") @db.NVarChar(50)
+  currentStatus          String?   @map("CurrentStatus") @db.NVarChar(50)
+  optionalApproval       Boolean   @map("OptionalApproval")
+  requiredEveryOneAction Boolean   @map("RequiredEveryOneAction")
+  yesLabel               String    @map("YesLabel") @db.NVarChar(Max)
+  yesActionLogLabel      String    @map("YesActionLogLabel") @db.NVarChar(Max)
+  yesStatus              String?   @map("YesStatus") @db.NVarChar(50)
+  noStatus               String?   @map("NoStatus") @db.NVarChar(50)
+  noLabel                String    @map("NoLabel") @db.NVarChar(Max)
+  noActionLogLabel       String    @map("NoActionLogLabel") @db.NVarChar(Max)
+  reworkLabel            String?   @map("ReworkLabel") @db.NVarChar(Max)
+  reworkActionLogLabel   String?   @map("ReworkActionLogLabel") @db.NVarChar(Max)
+  reworkStatus           String?   @map("ReworkStatus") @db.NVarChar(50)
+  changeProcessAfter     Int?      @map("ChangeProcessAfter")
+  changeProcessStatus    String?   @map("ChangeProcessStatus") @db.NVarChar(50)
+  endProcessAfter        Int?      @map("EndProcessAfter")
+  endProcessStatus       String?   @map("EndProcessStatus") @db.NVarChar(50)
+  escalateAfter          Int?      @map("EscalateAfter")
+  escalateTo             String?   @map("EscalateTo") @db.NVarChar(50)
+  skipSameApprover       Boolean   @map("SkipSameApprover")
+  createdDate            DateTime? @map("CreatedDate") @db.DateTime
+  modifiedDate           DateTime? @map("ModifiedDate") @db.DateTime
+  createdBy              String?   @map("CreatedBy") @db.UniqueIdentifier
+  modifiedBy             String?   @map("ModifiedBy") @db.UniqueIdentifier
+
+  routing        Routing         @relation(fields: [routingId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  emailTemplates EmailTemplate[]
+
+  @@map("RoutingRule")
+  @@schema("RM")
+}
+
+model EmailTemplate {
+  id               String    @id @map("ID") @db.UniqueIdentifier
+  routingRuleId    String    @map("RoutingRuleID") @db.UniqueIdentifier
+  sendEmail        Boolean   @map("SendEmail")
+  notificationType String    @map("NotificationType") @db.NVarChar(50)
+  isHtmlBody       Boolean   @map("IsHTMLBody")
+  subject          String    @map("Subject") @db.NVarChar(Max)
+  contentTemplate  String    @map("ContentTemplate") @db.NVarChar(Max)
+  emailTo          String    @map("EmailTo") @db.NVarChar(Max)
+  emailCc          String?   @map("EmailCC") @db.NVarChar(Max)
+  emailBcc         String?   @map("EmailBCC") @db.NVarChar(Max)
+  createdDate      DateTime? @map("CreatedDate") @db.DateTime
+  modifiedDate     DateTime? @map("ModifiedDate") @db.DateTime
+  createdBy        String?   @map("CreatedBy") @db.UniqueIdentifier
+  modifiedBy       String?   @map("ModifiedBy") @db.UniqueIdentifier
+
+  routingRule RoutingRule @relation(fields: [routingRuleId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("EmailTemplate")
+  @@schema("RM")
+}
+
+model CustomApprover {
+  id            String    @id @map("ID") @db.UniqueIdentifier
+  routingRuleId String    @map("RoutingRuleID") @db.UniqueIdentifier
+  approverId    String    @map("ApproverID") @db.UniqueIdentifier
+  createdDate   DateTime? @map("CreatedDate") @db.DateTime
+  modifiedDate  DateTime? @map("ModifiedDate") @db.DateTime
+  createdBy     String?   @map("CreatedBy") @db.UniqueIdentifier
+  modifiedBy    String?   @map("ModifiedBy") @db.NChar(10)
+
+  @@map("CustomApprover")
+  @@schema("RM")
+}
+
+// Read-only subset of RM.Task: only used to block deleting rules that tasks reference.
+model Task {
+  id            String @id @map("ID") @db.UniqueIdentifier
+  routingRuleId String @map("RoutingRuleID") @db.UniqueIdentifier
+
+  @@map("Task")
+  @@schema("RM")
+}
